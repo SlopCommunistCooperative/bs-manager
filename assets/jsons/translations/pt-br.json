@@ -350,6 +350,14 @@
                         "message": "Um erro aconteceu, não foi possível alterar a configuração de Symlinks."
                     }
                 },
+                "manual-proxy": {
+                    "title": "Manual proxy",
+                    "description": "Overrides the system proxy setting. Enter an HTTP or unauthenticated SOCKS5 URL with a port (e.g. http://host:8080 or socks5://host:1080). Clear the field and apply to remove it.",
+                    "error-notification": {
+                        "message": "Could not load or save the manual proxy setting.",
+                        "invalid-url": "Enter a valid HTTP or unauthenticated SOCKS5 proxy URL with a port."
+                    }
+                },
                 "use-system-proxy": {
                     "title": "Usar proxy de sistema",
                     "description": "BSManager irá enviar chamadas de rede pelo seu proxy de sistema.",

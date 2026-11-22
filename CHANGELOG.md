@@ -2,6 +2,9 @@
 [PR Merged since the last release](https://github.com/Zagrios/bs-manager/pulls?q=is%3Apr+is%3Amerged+merged%3A%3E2025-02-03)\
 [PR Merged since the last alpha](https://github.com/Zagrios/bs-manager/pulls?q=is%3Apr+is%3Amerged+merged%3A%3E2025-02-03)
 
+### Features
+- Added a manual HTTP or SOCKS5 proxy under Settings → Advanced on all platforms. It overrides the system proxy setting; clearing it restores the default routing.
+
 ## [1.5.2](https://github.com/Zagrios/bs-manager/releases/v1.5.2) (Feb 3, 2025)
 
 ### Fixes

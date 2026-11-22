@@ -48,8 +48,6 @@ staticConfig.take("disable-hadware-acceleration", disabled => {
     }
 });
 
-configureProxy();
-
 if (isDebug) {
     require("electron-debug")();
 }
@@ -117,7 +115,8 @@ if (!gotTheLock) {
         app.quit();
     })
 
-    app.whenReady().then(() => {
+    app.whenReady().then(async () => {
+        await configureProxy();
 
         app.setAppUserModelId(APP_NAME);
         init();
