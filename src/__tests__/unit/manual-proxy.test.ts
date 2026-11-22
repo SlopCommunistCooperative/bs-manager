@@ -60,7 +60,7 @@ it.each([
 
 it("submits manual proxy credentials only once per updater request", async () => {
     const { autoUpdater: { httpExecutor } } = jest.requireMock<{ autoUpdater: { httpExecutor: ElectronHttpExecutor } }>("electron-updater");
-    const createRequest = httpExecutor.createRequest;
+    const { createRequest } = httpExecutor;
     const platform = Object.getOwnPropertyDescriptor(process, "platform");
     const watch = jest.spyOn(saved, "$watch").mockReturnValue(EMPTY);
     Object.defineProperty(process, "platform", { ...platform, value: "darwin" });
