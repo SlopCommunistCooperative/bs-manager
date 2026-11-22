@@ -12,6 +12,7 @@ import sanitize from 'sanitize-filename';
 import internal from 'stream';
 import { app, net } from 'electron';
 import { CookieJar } from 'tough-cookie';
+import { attachManualProxyAuth, getManualProxyRequestOptions } from "main/helpers/manual-proxy-state";
 
 type IpFamily = 4 | 6;
 
@@ -101,6 +102,7 @@ export class RequestService {
                 url,
                 headers: this.baseHeaders,
             });
+            attachManualProxyAuth(request);
 
             const responseBody = new BufferAccumulator();
             let responseHeaders: IncomingHttpHeaders = {};
@@ -210,6 +212,7 @@ export class RequestService {
             dnsLookupIpVersion: family,
             cookieJar,
             headers: this.baseHeaders,
+            ...getManualProxyRequestOptions(),
             ...(options?.signal ? { signal: options.signal } : {}),
             ...(options?.retryLimit !== undefined ? { retry: { limit: options.retryLimit } } : {}),
         };
@@ -273,6 +276,7 @@ export class RequestService {
                 url,
                 headers: this.baseHeaders,
             });
+            attachManualProxyAuth(request);
 
             const cleanup = () => {
                 if (file) {
@@ -408,7 +412,7 @@ export class RequestService {
                 let file: WriteStream | undefined;
 
                 // @ts-ignore (ESM is not well supported in this project, We need to move out electron-react-boilerplate, and use Vite)
-                stream = got.stream(url, { dnsLookupIpVersion: family, headers: this.baseHeaders });
+                stream = got.stream(url, { dnsLookupIpVersion: family, headers: this.baseHeaders, ...getManualProxyRequestOptions() });
 
                 stream.on('response', (response) => {
                     this.rememberSuccessfulFamily(familySelection, family);
@@ -496,6 +500,7 @@ export class RequestService {
                 url,
                 headers: electronHeaders,
             });
+            attachManualProxyAuth(request);
 
             request.on('response', (response) => {
                 // Validate HTTP status code (got throws on non-2xx by default)
@@ -589,7 +594,7 @@ export class RequestService {
 
                 const family = familiesToTry[attempt++];
                 // @ts-ignore (ESM is not well supported in this project, We need to move out electron-react-boilerplate, and use Vite)
-                stream = got.stream(url, { dnsLookupIpVersion: family, ...(options ?? {}), headers });
+                stream = got.stream(url, { dnsLookupIpVersion: family, ...(options ?? {}), headers, ...getManualProxyRequestOptions() });
 
                 const data = new BufferAccumulator();
                 let response: IncomingMessage;

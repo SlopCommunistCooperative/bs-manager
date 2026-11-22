@@ -350,6 +350,14 @@
                         "message": "發生錯誤，無法更改符號鏈接設置。"
                     }
                 },
+                "manual-proxy": {
+                    "title": "Manual proxy",
+                    "description": "Overrides the system proxy setting. Enter an HTTP or unauthenticated SOCKS5 URL with a port (e.g. http://host:8080 or socks5://host:1080). Clear the field and apply to remove it.",
+                    "error-notification": {
+                        "message": "Could not load or save the manual proxy setting.",
+                        "invalid-url": "Enter a valid HTTP or unauthenticated SOCKS5 proxy URL with a port."
+                    }
+                },
                 "use-system-proxy": {
                     "title": "使用系統代理",
                     "description": "BSManager將通過您的系統代理發送網絡請求。",

@@ -350,6 +350,14 @@
                         "message": "Nagkaroon ng error, hindi ma-bago ang setting ng symlink."
                     }
                 },
+                "manual-proxy": {
+                    "title": "Manual proxy",
+                    "description": "Overrides the system proxy setting. Enter an HTTP or unauthenticated SOCKS5 URL with a port (e.g. http://host:8080 or socks5://host:1080). Clear the field and apply to remove it.",
+                    "error-notification": {
+                        "message": "Could not load or save the manual proxy setting.",
+                        "invalid-url": "Enter a valid HTTP or unauthenticated SOCKS5 proxy URL with a port."
+                    }
+                },
                 "use-system-proxy": {
                     "title": "Gumamit ng system proxy",
                     "description": "Gagawin ng BSManager ang mga network request sa pamamagitan ng iyong system proxy.",

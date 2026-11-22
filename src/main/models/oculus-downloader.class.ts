@@ -9,6 +9,7 @@ import { Progression, hashFile } from "../helpers/fs.helpers";
 import { OculusDownloaderErrorCodes } from "../../shared/models/bs-version-download/oculus-download.model";
 import { BsmZipExtractor } from "./bsm-zip-extractor.class";
 import { tryit } from "shared/helpers/error.helpers";
+import { getManualProxyRequestOptions } from "main/helpers/manual-proxy-state";
 
 export class OculusDownloader {
 
@@ -25,13 +26,14 @@ export class OculusDownloader {
         return `https://securecdn.oculus.com/binaries/segment/?access_token=${token}&binary_id=${binaryId}&segment_sha256=${segmentSha256}`;
     }
 
-    private async downloadManifestZip(manifestUrl: string): Promise<Buffer> {
-        return got(manifestUrl).buffer();
+    private async downloadBuffer(url: string): Promise<Buffer> {
+        // @ts-expect-error Legacy @types/got omits the installed got's .buffer() API.
+        return got(url, getManualProxyRequestOptions()).buffer();
     }
 
     private async getManifest(): Promise<OculusManifest> {
         const downloadUrl = this.getDownloadManifestUrl(this.options.accessToken, this.options.binaryId);
-        const buffer = await this.downloadManifestZip(downloadUrl)
+        const buffer = await this.downloadBuffer(downloadUrl)
             .catch(err => CustomError.throw(err, "DOWNLOAD_MANIFEST_FAILED"));
 
         const zip = await BsmZipExtractor.fromBuffer(buffer);
@@ -57,7 +59,7 @@ export class OculusDownloader {
 
             const downloadSegment = async (segment: OculusManifestFileSegment): Promise<Buffer> => {
                 const segmentUrl = this.getDownloadSegmentUrl(this.options.accessToken, this.options.binaryId, segment[1]);
-                return got(segmentUrl).buffer();
+                return this.downloadBuffer(segmentUrl);
             }
 
             const totalSegmentSize = file.segments.reduce((acc, segment) => acc + segment[2], 0);

@@ -52,6 +52,7 @@ import { DISCORD_URL } from "shared/constants";
 import { AutoUpdate } from "shared/models/config";
 import { isCloseOnLaunchSupported } from "renderer/helpers/close-on-launch-setting.helper";
 import { SettingFolderInput } from "renderer/components/settings/setting-folder-input.component";
+import { parseManualProxy } from "shared/helpers/manual-proxy.helpers";
 
 export function SettingsPage() {
 
@@ -632,12 +633,23 @@ function AdvancedSettings() {
     const [hardwareAccelerationEnabled, setHardwareAccelerationEnabled] = useState(true);
     const [useSymlink, setUseSymlink] = useState(false);
     const [useSystemProxy, setUseSystemProxy] = useState(false);
+    const [manualProxy, setManualProxy] = useState<string>();
+    const [manualProxyInput, setManualProxyInput] = useState("");
+    const [savingManualProxy, setSavingManualProxy] = useState(false);
+    const canApplyManualProxy = manualProxy !== undefined && manualProxyInput !== manualProxy && !savingManualProxy;
     const [autoUpdate, setAutoUpdate] = useState<AutoUpdate>(AutoUpdate.NEVER);
     const [closeBsManagerOnLaunch, setCloseBsManagerOnLaunch] = useState(false);
 
 
     useEffect(() => {
         staticConfig.get("disable-hadware-acceleration").then(disabled =>setHardwareAccelerationEnabled(() => disabled !== true));
+        staticConfig.get("manual-proxy").then(value => {
+            setManualProxy(value?.trim() ?? "");
+            setManualProxyInput(value?.trim() ?? "");
+        }).catch(() => notification.notifyError({
+            title: "notifications.types.error",
+            desc: "pages.settings.advanced.manual-proxy.error-notification.message"
+        }));
 
         if (window.electron.platform === "win32") {
             staticConfig.get("use-symlinks").then(useSymlinks => setUseSymlink(() => useSymlinks));
@@ -727,6 +739,32 @@ function AdvancedSettings() {
         setUseSystemProxy(() => newUseSystemProxy);
     }
 
+    const applyManualProxy = async () => {
+        if (!canApplyManualProxy) { return; }
+
+        const value = manualProxyInput.trim();
+        if (tryit(() => parseManualProxy(value)).error) {
+            notification.notifyError({
+                title: "notifications.types.error",
+                desc: "pages.settings.advanced.manual-proxy.error-notification.invalid-url"
+            });
+            return;
+        }
+
+        setSavingManualProxy(true);
+        const { error } = await tryit(() => staticConfig.set("manual-proxy", value));
+        setSavingManualProxy(false);
+        if (error) {
+            notification.notifyError({
+                title: "notifications.types.error",
+                desc: "pages.settings.advanced.manual-proxy.error-notification.message"
+            });
+            return;
+        }
+        setManualProxy(value);
+        setManualProxyInput(value);
+    };
+
     const onChangeAutoUpdate = async (value: boolean) => {
         if (window.electron.platform !== "win32") {
             return;
@@ -807,6 +845,17 @@ function AdvancedSettings() {
 
     return <SettingContainer title="pages.settings.advanced.title" description="pages.settings.advanced.description">
         <SettingToogleSwitchGrid items={advancedItems}/>
+        <SettingContainer className="mt-4" minorTitle="pages.settings.advanced.manual-proxy.title" description="pages.settings.advanced.manual-proxy.description">
+            <form onSubmit={event => { event.preventDefault(); applyManualProxy(); }}
+                className="relative flex items-center w-full h-8 bg-light-main-color-1 dark:bg-main-color-1 rounded-md pl-2 py-1">
+                <input aria-label={t.text("pages.settings.advanced.manual-proxy.title")} autoComplete="off" spellCheck={false}
+                    placeholder="http://host:port" className="min-w-0 grow bg-transparent outline-none"
+                    value={manualProxyInput} disabled={manualProxy === undefined || savingManualProxy}
+                    onChange={event => setManualProxyInput(event.target.value)} />
+                <BsmButton type="submit" disabled={!canApplyManualProxy}
+                    className="shrink-0 whitespace-nowrap mr-2 px-2 font-bold italic text-sm rounded-md" text="misc.apply" withBar={false} />
+            </form>
+        </SettingContainer>
     </SettingContainer>
 
 }

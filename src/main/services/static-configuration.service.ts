@@ -2,6 +2,7 @@ import ElectronStore from "electron-store";
 import { Observable, Subject } from "rxjs";
 import { BSVersion } from "shared/bs-version.interface";
 import { AutoUpdate } from "shared/models/config";
+import { parseManualProxy } from "shared/helpers/manual-proxy.helpers";
 
 export class StaticConfigurationService {
     private static instance: StaticConfigurationService;
@@ -36,6 +37,7 @@ export class StaticConfigurationService {
     }
 
     public async set<K extends StaticConfigKeys>(key: K, value: StaticConfigKeyValues[K]): Promise<void> {
+        if (key === "manual-proxy") { parseManualProxy(value as string); }
         this.store.set(key, value);
 
         if (this.watchers[key]) {
@@ -66,6 +68,7 @@ export interface StaticConfigKeyValues {
     "disable-hadware-acceleration": boolean;
     "use-symlinks": boolean;
     "use-system-proxy": boolean;
+    "manual-proxy": string;
     "close-bs-manager-on-launch": boolean;
     "last-version-launched": BSVersion;
     "auto-update": AutoUpdate;

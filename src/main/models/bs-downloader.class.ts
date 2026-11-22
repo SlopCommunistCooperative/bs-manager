@@ -6,6 +6,7 @@ import { Observable, ReplaySubject, Subscriber, share } from "rxjs";
 import { UtilsService } from "main/services/utils.service";
 import { CustomError } from "shared/models/exceptions/custom-error.class";
 import { DepotDownloaderErrorEvent, DepotDownloaderEvent, DepotDownloaderEventType, DepotDownloaderInfoEvent, DepotDownloaderWarningEvent } from "shared/models/bs-version-download/depot-downloader.model";
+import { getManualProxy } from "main/helpers/manual-proxy-state";
 
 export interface SteamDownloadSession {
     username: string;
@@ -164,6 +165,22 @@ export class BsDownloader {
 }
 export function downloaderEnvironment(): NodeJS.ProcessEnv {
     const env = { ...process.env };
+    const manual = getManualProxy();
+    if (manual) {
+        for (const key of Object.keys(env)) {
+            if (/^(https?|all|no)_proxy$/i.test(key)) { delete env[key]; }
+        }
+        const url = manual.href;
+        env.HTTP_PROXY = url;
+        env.http_proxy = url;
+        env.HTTPS_PROXY = url;
+        env.https_proxy = url;
+        if (manual.protocol === "socks5:") {
+            env.ALL_PROXY = url;
+            env.all_proxy = url;
+        }
+        return env;
+    }
     const agent = (global as typeof global & { GLOBAL_AGENT?: { HTTPS_PROXY?: string; HTTP_PROXY?: string; NO_PROXY?: string } }).GLOBAL_AGENT;
     if (agent?.HTTPS_PROXY || agent?.HTTP_PROXY) {
         env.HTTPS_PROXY = agent.HTTPS_PROXY || agent.HTTP_PROXY;
