@@ -10,9 +10,9 @@ export function parseManualProxy(value: string): URL | null {
         const endpoint = `http://${authority}:${rawPort}`;
         const url = URL.canParse(endpoint) ? new URL(endpoint) : null;
         const validHost = url && (url.hostname.startsWith("[") || url.hostname.replace(/\.$/, "").split(".")
-            .every(label => /^[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?$/i.test(label)));
+            .every(label => /^[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?$/.test(label)));
 
-        if (validHost && port > 0 && port <= 65535) {
+        if (validHost && port > 0) {
             if (scheme.toLowerCase() === "socks5") {
                 // Chromium does not support SOCKS5 authentication.
                 if (!authority.includes("@")) { return new URL(`socks5://${url.hostname}:${port}`); }

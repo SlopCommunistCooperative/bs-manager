@@ -3,6 +3,8 @@ import { setImmediate as flushChanges } from "node:timers/promises";
 import { app, session } from "electron";
 import { autoUpdater } from "electron-updater";
 import type { ClientRequest } from "electron";
+import type { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor";
+import { EMPTY } from "rxjs";
 import { configureProxy } from "main/helpers/proxy.helpers";
 import { attachManualProxyAuth, setManualProxy } from "main/helpers/manual-proxy-state";
 import { downloaderEnvironment } from "main/models/bs-downloader.class";
@@ -11,11 +13,17 @@ import { parseManualProxy } from "shared/helpers/manual-proxy.helpers";
 
 jest.mock("electron", () => ({
     app: new (jest.requireActual("node:events").EventEmitter)(),
-    session: { defaultSession: { setProxy: jest.fn(), clearAuthCache: jest.fn(), closeAllConnections: jest.fn() } },
+    net: { request: jest.fn(() => new (jest.requireActual("node:events").EventEmitter)()) },
+    session: { defaultSession: { setProxy: jest.fn(), clearAuthCache: jest.fn(), closeAllConnections: jest.fn() }, fromPartition: jest.fn() },
 }));
-jest.mock("electron-updater", () => ({
-    autoUpdater: { on: jest.fn(), netSession: { setProxy: jest.fn(), clearAuthCache: jest.fn(), closeAllConnections: jest.fn() } },
-}));
+jest.mock("electron-updater", () => {
+    const updater = new (jest.requireActual("node:events").EventEmitter)();
+    const { ElectronHttpExecutor: Executor } = jest.requireActual<{ ElectronHttpExecutor: typeof ElectronHttpExecutor }>("electron-updater/out/electronHttpExecutor");
+    return { autoUpdater: Object.assign(updater, {
+        httpExecutor: new Executor((auth, callback) => updater.emit("login", auth, callback)),
+        netSession: { setProxy: jest.fn(), clearAuthCache: jest.fn(), closeAllConnections: jest.fn() },
+    }) };
+});
 jest.mock("electron-log", () => ({ error: jest.fn() }));
 jest.mock("electron-store", () => class extends Map<string, unknown> {
     get(key: string, fallback?: unknown) { return super.has(key) ? super.get(key) : fallback; }
@@ -48,6 +56,40 @@ it.each([
     "https://proxy:8080", "socks4://proxy:1080", "socks5://user:secret@proxy:1080", "http://user:%zz@proxy:8080",
 ])("rejects %s without including the value in the error", input => {
     expect(() => parseManualProxy(input)).toThrow(/^Invalid manual proxy URL$/);
+});
+
+it("submits manual proxy credentials only once per updater request", async () => {
+    const { autoUpdater: { httpExecutor } } = jest.requireMock<{ autoUpdater: { httpExecutor: ElectronHttpExecutor } }>("electron-updater");
+    const createRequest = httpExecutor.createRequest;
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    const watch = jest.spyOn(saved, "$watch").mockReturnValue(EMPTY);
+    Object.defineProperty(process, "platform", { ...platform, value: "darwin" });
+    jest.mocked(session.fromPartition).mockReturnValue(autoUpdater.netSession);
+    try {
+        await saved.set("manual-proxy", "http://user:p%40ss@proxy.example:8080");
+        await configureProxy();
+
+        const auth = { isProxy: true, host: "proxy.example", port: 8080 };
+        const challenge = (request: ClientRequest) => {
+            const callback = jest.fn();
+            // Electron cancels with no arguments when no request login listener handles the challenge.
+            if (!request.emit("login", auth, callback)) { callback(); }
+            return callback.mock.calls;
+        };
+        const request = httpExecutor.createRequest({}, jest.fn());
+        expect(challenge(request)).toEqual([["user", "p@ss"]]);
+        expect(challenge(request)).toEqual([[]]);
+        expect(challenge(httpExecutor.createRequest({}, jest.fn()))).toEqual([["user", "p@ss"]]);
+    } finally {
+        httpExecutor.createRequest = createRequest;
+        jest.mocked(session.fromPartition).mockReset();
+        Object.defineProperty(process, "platform", platform);
+        watch.mockRestore();
+        saved.delete("manual-proxy");
+        Reflect.deleteProperty(global, "GLOBAL_AGENT");
+        setManualProxy(null);
+        app.removeAllListeners("login");
+    }
 });
 
 it("switches live between validated manual proxies and the Windows system fallback", async () => {

@@ -2,12 +2,13 @@ import log from "electron-log";
 import { app, session } from "electron";
 import type { Session } from "electron";
 import { autoUpdater } from "electron-updater";
+import type { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor";
 import { bootstrap } from "global-agent";
 import { merge } from "rxjs";
 import type { list as listRegistry } from "regedit-rs";
 import { parseManualProxy } from "shared/helpers/manual-proxy.helpers";
 import { StaticConfigurationService } from "../services/static-configuration.service";
-import { getManualProxyCredentials, setManualProxy } from "./manual-proxy-state";
+import { attachManualProxyAuth, getManualProxyCredentials, setManualProxy } from "./manual-proxy-state";
 
 const internetSettings = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 type GlobalProxyAgent = { HTTP_PROXY: string | null; HTTPS_PROXY: string | null; NO_PROXY: string | null };
@@ -76,11 +77,16 @@ export function configureProxy(): Promise<void> {
             if (manual && process.platform !== "linux" && !updaterSession) {
                 // The launcher updater uses its own Chromium session.
                 updaterSession = autoUpdater.netSession;
-                autoUpdater.on("login", (auth, callback) => {
-                    const credentials = getManualProxyCredentials(auth);
-                    if (credentials) { callback(...credentials); }
-                    else { callback("", ""); }
-                });
+                // The updater's login event drops request identity, and AuthInfo has no retry flag.
+                const { httpExecutor } = autoUpdater as typeof autoUpdater & { httpExecutor: ElectronHttpExecutor };
+                const createRequest = httpExecutor.createRequest.bind(httpExecutor);
+                httpExecutor.createRequest = (options, callback) => {
+                    const request = createRequest(options, callback);
+                    // Replace the updater's forwarding listener so Electron cancels unhandled retries.
+                    request.removeAllListeners("login");
+                    attachManualProxyAuth(request);
+                    return request;
+                };
             }
             for (const target of updaterSession ? [defaultSession, updaterSession] : [defaultSession]) {
                 await target.setProxy(manual
